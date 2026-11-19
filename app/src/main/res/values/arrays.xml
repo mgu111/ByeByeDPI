@@ -37,6 +37,19 @@
         <item name="proxy">proxy</item>
     </array>
 
+    <array name="dns_modes">
+        <item name="system">@string/dns_mode_system</item>
+        <item name="udp">@string/dns_mode_udp</item>
+        <item name="doh">DoH (DNS over HTTPS)</item>
+        <item name="dot">DoT (DNS over TLS)</item>
+    </array>
+    <array name="dns_modes_entries">
+        <item name="system">system</item>
+        <item name="udp">udp</item>
+        <item name="doh">doh</item>
+        <item name="dot">dot</item>
+    </array>
+
     <array name="byedpi_desync_methods">
         <item name="none">None</item>
         <item name="split">Split</item>

@@ -1,5 +1,7 @@
 package io.github.romanvht.byedpi.data
 
+import io.github.romanvht.byedpi.dns.DnsSettings
+
 data class Configuration(
     val args: List<String>,
     val host: String,
@@ -8,4 +10,5 @@ data class Configuration(
     val ipv6: Boolean = false,
     val appListType: String = "disable",
     val apps: List<String> = emptyList(),
+    val dnsSettings: DnsSettings = DnsSettings(),
 )

@@ -32,6 +32,21 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         setEditTestPreferenceListenerPort("byedpi_proxy_port")
         setEditTextPreferenceListener("dns_ip") { it.isBlank() || checkNotLocalIp(it) }
 
+        findPreferenceNotNull<ListPreference>("dns_mode")
+            .setOnPreferenceChangeListener { _, newValue ->
+                val server = sharedPreferences?.getStringNotNull("dns_server", "").orEmpty()
+                if (server.isBlank()) {
+                    val default = when (newValue as String) {
+                        "doh" -> "https://1.1.1.1/dns-query"
+                        "dot" -> "1.1.1.1"
+                        "udp" -> "1.1.1.1"
+                        else -> ""
+                    }
+                    if (default.isNotEmpty()) sharedPreferences?.edit { putString("dns_server", default) }
+                }
+                true
+            }
+
         findPreferenceNotNull<ListPreference>("language")
             .setOnPreferenceChangeListener { _, newValue ->
                 SettingsUtils.setLang(newValue as String)
@@ -111,6 +126,12 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
         val privateDns = findPreferenceNotNull<Preference>("private_dns")
         val privateDnsState = PrivateDnsUtils.getState(requireContext())
         val ipv6 = findPreferenceNotNull<SwitchPreference>("ipv6_enable")
+        val dnsMode = findPreferenceNotNull<ListPreference>("dns_mode")
+        val dnsServer = findPreferenceNotNull<EditTextPreference>("dns_server")
+        val dnsFallback = findPreferenceNotNull<EditTextPreference>("dns_fallback")
+        val dnsHosts = findPreferenceNotNull<EditTextPreference>("dns_hosts")
+        val dnsIpv4Only = findPreferenceNotNull<SwitchPreference>("dns_ipv4_only")
+        val dnsViaProxy = findPreferenceNotNull<SwitchPreference>("dns_via_proxy")
         val proxy = findPreferenceNotNull<PreferenceCategory>("byedpi_proxy_category")
 
         val applistType = findPreferenceNotNull<ListPreference>("applist_type")
@@ -140,7 +161,15 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
 
         when (mode) {
             Mode.VPN -> {
-                dns.isVisible = privateDnsState !is PrivateDnsState.Configured
+                val customDns = privateDnsState !is PrivateDnsState.Configured
+                val secure = customDns && dnsMode.value != "system"
+                dns.isVisible = customDns && dnsMode.value == "system"
+                dnsMode.isVisible = customDns
+                dnsServer.isVisible = secure
+                dnsFallback.isVisible = secure
+                dnsHosts.isVisible = secure
+                dnsIpv4Only.isVisible = secure
+                dnsViaProxy.isVisible = secure && (dnsMode.value == "doh" || dnsMode.value == "dot")
                 ipv6.isVisible = true
 
                 when (applistType.value) {
@@ -162,6 +191,12 @@ class MainSettingsFragment : PreferenceFragmentCompat() {
 
             Mode.Proxy -> {
                 dns.isVisible = false
+                dnsMode.isVisible = false
+                dnsServer.isVisible = false
+                dnsFallback.isVisible = false
+                dnsHosts.isVisible = false
+                dnsIpv4Only.isVisible = false
+                dnsViaProxy.isVisible = false
                 ipv6.isVisible = false
                 applistType.isVisible = false
                 selectedApps.isVisible = false

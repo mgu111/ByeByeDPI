@@ -116,7 +116,10 @@ class ByeDpiVpnService : VpnService() {
                 .addRoute("::", 0)
         }
 
-        if (configuration.dns.isNotBlank()) {
+        if (configuration.dnsSettings.secure) {
+            // Запросы DNS перехватывает hev (mapdns), а имена резолвит DnsFrontProxy по DoH/DoT
+            builder.addDnsServer(NativeSession.MAPDNS_ADDRESS)
+        } else if (configuration.dns.isNotBlank()) {
             builder.addDnsServer(configuration.dns)
         }
 

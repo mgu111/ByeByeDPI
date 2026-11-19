@@ -26,6 +26,7 @@ import io.github.romanvht.byedpi.core.ByeDpiProxyUIPreferences
 import io.github.romanvht.byedpi.data.Configuration
 import io.github.romanvht.byedpi.data.Mode
 import io.github.romanvht.byedpi.data.PrivateDnsState
+import io.github.romanvht.byedpi.dns.DnsSettings
 import io.github.romanvht.byedpi.data.START_ACTION
 import io.github.romanvht.byedpi.utility.*
 import kotlinx.coroutines.CompletableDeferred
@@ -52,6 +53,16 @@ internal class NativeEngine(
             }
             val (defaultHost, defaultPort) = preferences.getProxyIpAndPort()
             val (host, port) = args.toList().checkIpAndPortInArgs()
+            val privateDns = PrivateDnsUtils.getState(context) is PrivateDnsState.Configured
+            val dnsMode = preferences.getStringNotNull("dns_mode", "system")
+            val dnsSettings = if (privateDns || dnsMode == "system") DnsSettings() else DnsSettings(
+                mode = dnsMode,
+                server = preferences.getStringNotNull("dns_server", ""),
+                fallback = preferences.getStringNotNull("dns_fallback", ""),
+                hosts = preferences.getStringNotNull("dns_hosts", ""),
+                ipv4Only = preferences.getBoolean("dns_ipv4_only", true),
+                viaProxy = preferences.getBoolean("dns_via_proxy", true),
+            )
             return Configuration(
                 args.toList(), host ?: defaultHost, (port ?: defaultPort).toInt(),
                 dns = if (PrivateDnsUtils.getState(context) is PrivateDnsState.Configured) ""
@@ -59,6 +70,7 @@ internal class NativeEngine(
                 ipv6 = preferences.getBoolean("ipv6_enable", false),
                 appListType = preferences.getStringNotNull("applist_type", "disable"),
                 apps = preferences.getSelectedApps(),
+                dnsSettings = dnsSettings,
             )
         }
 
@@ -212,6 +224,12 @@ internal class NativeEngine(
                 putBoolean(EngineProtocol.IPV6, configuration.ipv6)
                 putString(EngineProtocol.APP_LIST_TYPE, configuration.appListType)
                 putStringArray(EngineProtocol.APPS, configuration.apps.toTypedArray())
+                putString(EngineProtocol.DNS_MODE, configuration.dnsSettings.mode)
+                putString(EngineProtocol.DNS_SERVER, configuration.dnsSettings.server)
+                putString(EngineProtocol.DNS_FALLBACK, configuration.dnsSettings.fallback)
+                putString(EngineProtocol.DNS_HOSTS, configuration.dnsSettings.hosts)
+                putBoolean(EngineProtocol.DNS_IPV4_ONLY, configuration.dnsSettings.ipv4Only)
+                putBoolean(EngineProtocol.DNS_VIA_PROXY, configuration.dnsSettings.viaProxy)
             })
         }
         awaitStarted()

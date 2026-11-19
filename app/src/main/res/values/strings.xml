@@ -38,6 +38,17 @@
     <string name="theme_settings">Тема</string>
     <string name="mode_setting">Режим</string>
     <string name="dbs_ip_setting">DNS</string>
+    <string name="dns_mode_setting">Режим DNS</string>
+    <string name="dns_mode_system">Обычный (IP-адрес выше)</string>
+    <string name="dns_mode_udp">Обычный UDP (без шифрования)</string>
+    <string name="dns_server_setting">DNS-сервер</string>
+    <string name="dns_server_summary">DoH: https://1.1.1.1/dns-query. DoT: 1.1.1.1 или dns.google@8.8.8.8</string>
+    <string name="dns_fallback_setting">Запасной DNS-сервер</string>
+    <string name="dns_hosts_setting">Свои записи (hosts)</string>
+    <string name="dns_hosts_summary">По одной на строку: домен IP</string>
+    <string name="dns_ipv4_only_setting">Только IPv4-ответы (отбрасывать AAAA)</string>
+    <string name="dns_via_proxy_setting">Запросы к DNS через обход DPI</string>
+    <string name="dns_via_proxy_summary">DoH/DoT трафик идёт через ByeDPI, чтобы сервер не блокировался по SNI</string>
     <string name="byedpi_version">ByeDPI</string>
     <string name="bye_dpi_proxy_ip_setting">Прослушиваемый IP</string>
     <string name="byedpi_proxy_port_setting">Порт</string>

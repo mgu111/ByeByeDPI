@@ -13,6 +13,9 @@ import android.util.Log
 import io.github.romanvht.byedpi.core.ByeDpiProxy
 import io.github.romanvht.byedpi.core.TProxyService
 import io.github.romanvht.byedpi.data.Configuration
+import io.github.romanvht.byedpi.dns.DnsFrontProxy
+import io.github.romanvht.byedpi.dns.DnsSettings
+import io.github.romanvht.byedpi.dns.SecureDnsResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +42,7 @@ internal class NativeSession(
         private const val STOP_TIMEOUT = 2_000L
         private const val PROBE_TIMEOUT = 250
         private val processStarted = AtomicBoolean()
+        const val MAPDNS_ADDRESS = "198.18.0.2"
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -59,6 +63,7 @@ internal class NativeSession(
     private var tunnelThread: Thread? = null
     private var tunFd: ParcelFileDescriptor? = null
     private var startJob: Job? = null
+    private var dnsFront: DnsFrontProxy? = null
 
     val binder: IBinder get() = messenger.binder
 
@@ -100,6 +105,7 @@ internal class NativeSession(
             try {
                 if (tunnelThread != null) TProxyService.stopTunnel()
                 proxy?.stopProxy()
+                dnsFront?.stop()
                 tunnelThread?.join()
                 proxyThread?.join()
                 tunFd?.close()
@@ -184,6 +190,14 @@ internal class NativeSession(
             data.getBoolean(EngineProtocol.IPV6),
             data.getString(EngineProtocol.APP_LIST_TYPE) ?: "disable",
             data.getStringArray(EngineProtocol.APPS)?.toList().orEmpty(),
+            DnsSettings(
+                mode = data.getString(EngineProtocol.DNS_MODE) ?: "system",
+                server = data.getString(EngineProtocol.DNS_SERVER).orEmpty(),
+                fallback = data.getString(EngineProtocol.DNS_FALLBACK).orEmpty(),
+                hosts = data.getString(EngineProtocol.DNS_HOSTS).orEmpty(),
+                ipv4Only = data.getBoolean(EngineProtocol.DNS_IPV4_ONLY, true),
+                viaProxy = data.getBoolean(EngineProtocol.DNS_VIA_PROXY, true),
+            ),
         )
         state = EngineProtocol.STATE_STARTING
         reply(EngineProtocol.CONFIGURED)
@@ -206,6 +220,17 @@ internal class NativeSession(
                 proxyThread = runNative("ByeDPI") { engine.startProxy(config.args.toTypedArray()) }
                 withTimeout(START_TIMEOUT) { awaitProxy(config.host, config.port) }
                 createTunnel?.let { create ->
+                    val secureDns = config.dnsSettings.secure
+                    var socksHost = config.host
+                    var socksPort = config.port
+                    if (secureDns) {
+                        val probeHost = if (config.host == "0.0.0.0") "127.0.0.1" else config.host
+                        val resolver = SecureDnsResolver(config.dnsSettings, probeHost, config.port)
+                        val front = DnsFrontProxy(resolver, probeHost, config.port)
+                        socksPort = withContext(Dispatchers.IO) { front.start() }
+                        socksHost = "127.0.0.1"
+                        dnsFront = front
+                    }
                     val fd = create(config)
                     tunFd = fd
                     val tunnelConfig = buildString {
@@ -213,9 +238,17 @@ internal class NativeSession(
                         appendLine("  mtu: 8500")
                         appendLine("misc:")
                         appendLine("  task-stack-size: 81920")
+                        if (secureDns) {
+                            appendLine("mapdns:")
+                            appendLine("  address: $MAPDNS_ADDRESS")
+                            appendLine("  port: 53")
+                            appendLine("  network: 100.64.0.0")
+                            appendLine("  netmask: 255.192.0.0")
+                            appendLine("  cache-size: 10000")
+                        }
                         appendLine("socks5:")
-                        appendLine("  address: ${config.host}")
-                        appendLine("  port: ${config.port}")
+                        appendLine("  address: $socksHost")
+                        appendLine("  port: $socksPort")
                         appendLine("  udp: udp")
                     }
                     tunnelThread = runNative("HEV") { TProxyService.startTunnel(tunnelConfig, fd.fd) }
